@@ -109,8 +109,8 @@ export default class ChatModelManager {
       enableCors: customModel.enableCors,
     };
 
-    // Add temperature only if thinking is not enabled
-    if (!isThinkingEnabled) {
+    // Add temperature only if thinking is not enabled and provider supports it
+    if (!isThinkingEnabled && customModel.provider !== ChatModelProviders.CLAUDE_CODE_CLI) {
       (baseConfig as any).temperature = customModel.temperature ?? settings.temperature;
     }
 
@@ -263,15 +263,18 @@ export default class ChatModelManager {
       providerConfig[customModel.provider as keyof typeof providerConfig] || {};
 
     // Add token configuration separately to ensure they don't conflict
-    const tokenConfig = isThinkingEnabled
-      ? {
-          maxTokens: customModel.maxTokens ?? settings.maxTokens,
-        }
-      : this.handleOpenAIExtraArgs(
-          isOSeries,
-          customModel.maxTokens ?? settings.maxTokens,
-          customModel.temperature ?? settings.temperature
-        );
+    let tokenConfig = {};
+    if (customModel.provider !== ChatModelProviders.CLAUDE_CODE_CLI) {
+      tokenConfig = isThinkingEnabled
+        ? {
+            maxTokens: customModel.maxTokens ?? settings.maxTokens,
+          }
+        : this.handleOpenAIExtraArgs(
+            isOSeries,
+            customModel.maxTokens ?? settings.maxTokens,
+            customModel.temperature ?? settings.temperature
+          );
+    }
 
     const finalConfig = {
       ...baseConfig,
@@ -440,7 +443,10 @@ export default class ChatModelManager {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { streaming, maxTokens, maxCompletionTokens, ...pingConfig } = modelConfig;
       const isOSeries = isOSeriesModel(modelToTest.name);
-      const tokenConfig = this.handleOpenAIExtraArgs(isOSeries, 10, modelConfig.temperature);
+      const tokenConfig =
+        modelToTest.provider === ChatModelProviders.CLAUDE_CODE_CLI
+          ? {}
+          : this.handleOpenAIExtraArgs(isOSeries, 10, modelConfig.temperature);
       const testModel = new (this.getProviderConstructor(modelToTest))({
         ...pingConfig,
         ...tokenConfig,

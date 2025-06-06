@@ -15,24 +15,18 @@ import type { CallbackManagerForLLMRun } from "@langchain/core/callbacks/manager
 
 export interface ClaudeCodeCLIConfig extends BaseChatModelParams {
   modelName?: string;
-  maxTokens?: number;
-  temperature?: number;
   streaming?: boolean;
   claudeExecutablePath?: string;
 }
 
 export class ChatClaudeCodeCLI extends BaseChatModel {
   modelName: string;
-  maxTokens?: number;
-  temperature?: number;
   streaming: boolean;
   claudeExecutablePath: string;
 
   constructor(config: ClaudeCodeCLIConfig = {}) {
     super(config);
     this.modelName = config.modelName || "sonnet";
-    this.maxTokens = config.maxTokens;
-    this.temperature = config.temperature;
     this.streaming = config.streaming ?? false;
     this.claudeExecutablePath = config.claudeExecutablePath || "claude";
   }
