@@ -85,7 +85,7 @@ The plugin supports three ways to specify Claude models:
    - And other valid Claude model identifiers
 
 3. **Default Model**:
-   - Leave blank or use `claude-code-default` to use Claude Code's default model
+   - Leave blank or use `sonnet` to use the default model
 
 ## Limitations
 

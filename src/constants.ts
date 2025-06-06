@@ -115,7 +115,7 @@ export enum ChatModels {
   CLAUDE_3_5_SONNET = "claude-3-5-sonnet-latest",
   CLAUDE_3_7_SONNET = "claude-3-7-sonnet-latest",
   CLAUDE_3_5_HAIKU = "claude-3-5-haiku-latest",
-  CLAUDE_CODE_CLI_DEFAULT = "claude-code-default",
+  CLAUDE_CODE_CLI_DEFAULT = "sonnet",
   GROK3 = "grok-3-beta",
   GROK3_MINI = "grok-3-mini-beta",
   COMMAND_R = "command-r",
