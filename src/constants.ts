@@ -230,7 +230,8 @@ export const BUILTIN_CHAT_MODELS: CustomModel[] = [
     enabled: true,
     isBuiltIn: true,
     displayName: "Claude Code CLI (Local)",
-    baseUrl: "/Users/ben/.claude/local/claude", // Path to claude executable
+    // Default to calling `claude` from PATH. Specify full path in settings if needed.
+    baseUrl: "claude",
     maxTokens: 4096,
   },
   {
