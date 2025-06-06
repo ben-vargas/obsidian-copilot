@@ -35,7 +35,7 @@ The Claude Code CLI provider is already included in the list of available provid
      - **Custom Model** - Specify a custom model name (e.g., `claude-3-5-sonnet`, `claude-3-opus`, etc.)
    - **Claude Executable Path**: This field is used for the executable path. Default is `claude`, but you can specify the full path if needed (e.g., `/usr/local/bin/claude`)
    - **No API Key Required**: Claude Code CLI uses your existing Claude authentication, so no API key field is shown
-   - **Note**: Temperature and max tokens settings are not supported by Claude Code CLI
+   - **Note**: Temperature and max tokens settings are ignored by Claude Code CLI
 
 ### 3. Using Claude Code CLI
 
