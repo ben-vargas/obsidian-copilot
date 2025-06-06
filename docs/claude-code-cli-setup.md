@@ -37,7 +37,7 @@ The Claude Code CLI provider is already included in the list of available provid
      The built-in model calls `claude` by default, but you can specify the full
      path if needed (e.g., `/usr/local/bin/claude`).
    - **No API Key Required**: Claude Code CLI uses your existing Claude authentication, so no API key field is shown
-   - **Note**: Temperature and max tokens settings are not supported by Claude Code CLI
+   - **Note**: Temperature and max tokens settings are ignored by Claude Code CLI
 
 ### 3. Using Claude Code CLI
 
