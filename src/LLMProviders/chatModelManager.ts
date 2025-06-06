@@ -255,7 +255,7 @@ export default class ChatModelManager {
       },
       [ChatModelProviders.CLAUDE_CODE_CLI]: {
         modelName: customModel.name === ChatModels.CLAUDE_CODE_CLI_DEFAULT ? "sonnet" : modelName,
-        claudeExecutablePath: customModel.baseUrl || "/Users/ben/.claude/local/claude",
+        claudeExecutablePath: customModel.baseUrl || "claude",
       },
     };
 
@@ -284,7 +284,7 @@ export default class ChatModelManager {
 
     // Final safety check to ensure no temperature when thinking is enabled
     if (isThinkingEnabled) {
-      delete finalConfig.temperature;
+      delete (finalConfig as any).temperature;
     }
 
     return finalConfig as ModelConfig;

@@ -232,7 +232,6 @@ export const BUILTIN_CHAT_MODELS: CustomModel[] = [
     displayName: "Claude Code CLI (Local)",
     baseUrl: "claude",
     maxTokens: 4096,
-
   },
   {
     name: ChatModels.GROK3,

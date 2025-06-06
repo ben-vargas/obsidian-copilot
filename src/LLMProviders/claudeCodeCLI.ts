@@ -58,34 +58,52 @@ export class ChatClaudeCodeCLI extends BaseChatModel {
       const path = (window as any).require("path");
       const execPromise = util.promisify(exec);
 
-      // Use the Node.js binary running this process by default
-      let nodePath = process.execPath;
-      let nodeDir = path.dirname(nodePath);
+      // Use the Node.js binary running this process by default, but try to find a better one.
+      let nodeDir = path.dirname(process.execPath);
 
       // Attempt to locate node via PATH for environments using tools like nvm
       try {
         const lookupCmd = process.platform === "win32" ? "where node" : "which node";
-        const { stdout } = await execPromise(lookupCmd);
-        const found = stdout.trim();
+
+        const execEnv = { ...process.env };
+        if (process.platform === "darwin") {
+          const existingPath = process.env.PATH || "";
+          execEnv.PATH = [existingPath, "/usr/local/bin", "/opt/homebrew/bin"]
+            .filter(Boolean)
+            .join(path.delimiter);
+        }
+
+        const { stdout } = await execPromise(lookupCmd, { env: execEnv });
+        const found = stdout.trim().split("\n")[0]; // Take the first line
         if (found) {
-          nodePath = found;
-          nodeDir = path.dirname(nodePath);
+          nodeDir = path.dirname(found);
         } else {
           throw new Error(`'${lookupCmd}' returned empty output`);
         }
       } catch (lookupErr) {
-        // Fallback to process.execPath if lookup fails
+        // Fallback to process.execPath's directory if lookup fails
         console.warn(
-          `[Claude CLI] Failed to locate node via PATH: ${(lookupErr as Error).message}`
+          `[Claude CLI] Failed to locate node via PATH: ${
+            (lookupErr as Error).message
+          }. Using default.`
         );
       }
-
       // Use spawn to avoid Electron callback bugs with exec/execFile
       // See: https://github.com/electron/electron/issues/25405
       return new Promise((resolve, reject) => {
+        const pathParts = [nodeDir]; // Start with the dir from 'which node' or default.
+
+        if (process.platform === "darwin") {
+          // On macOS, GUI apps don't inherit the shell's PATH. We need to
+          // add common fallback locations for Node.js.
+          pathParts.push("/usr/local/bin", "/opt/homebrew/bin");
+        }
+
+        pathParts.push(process.env.PATH || "");
+
         const env = {
           ...process.env,
-          PATH: `${nodeDir}${path.delimiter}${process.env.PATH || ""}`,
+          PATH: pathParts.filter(Boolean).join(path.delimiter),
         };
 
         const claudeProcess = spawn(this.claudeExecutablePath, args, {

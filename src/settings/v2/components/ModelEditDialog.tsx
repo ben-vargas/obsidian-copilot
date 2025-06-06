@@ -230,12 +230,12 @@ export const ModelEditDialog: React.FC<ModelEditDialogProps> = ({
           <FormField
             label={
               localModel.provider === ChatModelProviders.CLAUDE_CODE_CLI
-                ? "Claude Executable Path"
+                ? "Executable Path"
                 : "Base URL"
             }
             description={
               localModel.provider === ChatModelProviders.CLAUDE_CODE_CLI
-                ? "Path to claude executable (default: 'claude'). Leave blank to use system PATH."
+                ? "Full path to the `claude` executable. Leave blank to use system PATH."
                 : "Leave it blank, unless you are using a proxy."
             }
           >
@@ -243,7 +243,7 @@ export const ModelEditDialog: React.FC<ModelEditDialogProps> = ({
               type="text"
               placeholder={
                 localModel.provider === ChatModelProviders.CLAUDE_CODE_CLI
-                  ? "claude"
+                  ? "/opt/homebrew/bin/claude"
                   : getPlaceholderUrl()
               }
               value={localModel.baseUrl || ""}
