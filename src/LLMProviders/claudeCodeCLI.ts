@@ -59,48 +59,15 @@ export class ChatClaudeCodeCLI extends BaseChatModel {
     }
 
     try {
-      // Try to get child_process module from different sources
-      let spawn: any;
-
-      try {
-        // Try electron remote first
-        const electron = (window as any).require("electron");
-        const cp = electron.remote.require("child_process");
-        spawn = cp.spawn;
-      } catch {
-        // Try direct window.require
-        const cp = (window as any).require?.("child_process");
-        spawn = cp?.spawn;
-      }
-
-      if (!spawn) {
-        // If neither work, try using obsidian's require
-        const obsidianRequire = (window as any).require;
-        if (obsidianRequire) {
-          const cp = obsidianRequire("child_process");
-          if (cp) {
-            spawn = cp.spawn;
-          }
-        }
-      }
-
-      if (!spawn) {
-        throw new Error(
-          "Claude Code CLI requires Obsidian to be running on desktop with Node.js integration enabled."
-        );
-      }
+      // For Obsidian desktop plugins, we can use Node's child_process module.
+      // This requires the plugin to have Node.js integration enabled in its manifest.
+      const { spawn } = (window as any).require("child_process");
 
       // Use spawn to avoid Electron callback bugs with exec/execFile
       // See: https://github.com/electron/electron/issues/25405
       return new Promise((resolve, reject) => {
-        // Ensure PATH includes node
-        const env = {
-          ...process.env,
-          PATH: `/Users/ben/.nvm/versions/node/v22.14.0/bin:${process.env.PATH || ""}`,
-        };
-
         const claudeProcess = spawn(this.claudeExecutablePath, args, {
-          env: env,
+          env: process.env,
           windowsHide: true,
           stdio: ["pipe", "pipe", "pipe"], // Explicitly set stdio
           shell: false, // Don't use shell
@@ -169,9 +136,6 @@ export class ChatClaudeCodeCLI extends BaseChatModel {
             // Extract the content from the response
             const content = response.result || "";
 
-            // Handle callbacks if needed
-            await runManager?.handleLLMNewToken(content);
-
             const message = new AIMessage(content);
             const generation: ChatGeneration = {
               message,
@@ -198,6 +162,11 @@ export class ChatClaudeCodeCLI extends BaseChatModel {
       });
     } catch (error) {
       if (error instanceof Error) {
+        if (error.message.includes("Cannot find module")) {
+          throw new Error(
+            "Claude Code CLI requires Obsidian to be running on desktop with Node.js integration enabled."
+          );
+        }
         throw new Error(`Claude Code CLI error: ${error.message}`);
       }
       throw error;
