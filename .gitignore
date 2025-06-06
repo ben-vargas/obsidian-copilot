@@ -24,6 +24,3 @@ data.json
 
 # Test Environment
 .env.test
-
-# Claude Code
-CLAUDE.md
