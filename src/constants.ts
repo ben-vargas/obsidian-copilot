@@ -115,6 +115,7 @@ export enum ChatModels {
   CLAUDE_3_5_SONNET = "claude-3-5-sonnet-latest",
   CLAUDE_3_7_SONNET = "claude-3-7-sonnet-latest",
   CLAUDE_3_5_HAIKU = "claude-3-5-haiku-latest",
+  CLAUDE_CODE_CLI_DEFAULT = "sonnet",
   GROK3 = "grok-3-beta",
   GROK3_MINI = "grok-3-mini-beta",
   COMMAND_R = "command-r",
@@ -142,6 +143,7 @@ export enum ChatModelProviders {
   COPILOT_PLUS = "copilot-plus",
   MISTRAL = "mistralai",
   DEEPSEEK = "deepseek",
+  CLAUDE_CODE_CLI = "claude-code-cli",
 }
 
 export enum ModelCapability {
@@ -221,6 +223,15 @@ export const BUILTIN_CHAT_MODELS: CustomModel[] = [
     provider: ChatModelProviders.ANTHROPIC,
     enabled: true,
     isBuiltIn: true,
+  },
+  {
+    name: ChatModels.CLAUDE_CODE_CLI_DEFAULT,
+    provider: ChatModelProviders.CLAUDE_CODE_CLI,
+    enabled: true,
+    isBuiltIn: true,
+    displayName: "Claude Code CLI (Local)",
+    baseUrl: "/Users/ben/.claude/local/claude", // Path to claude executable
+    maxTokens: 4096,
   },
   {
     name: ChatModels.GROK3,
@@ -386,7 +397,10 @@ export type Provider = ChatModelProviders | EmbeddingModelProviders;
 
 export type SettingKeyProviders = Exclude<
   ChatModelProviders,
-  ChatModelProviders.OPENAI_FORMAT | ChatModelProviders.LM_STUDIO | ChatModelProviders.OLLAMA
+  | ChatModelProviders.OPENAI_FORMAT
+  | ChatModelProviders.LM_STUDIO
+  | ChatModelProviders.OLLAMA
+  | ChatModelProviders.CLAUDE_CODE_CLI
 >;
 
 // Provider metadata interface
@@ -487,6 +501,13 @@ export const ProviderInfo: Record<Provider, ProviderMetadata> = {
     keyManagementURL: "https://platform.deepseek.com/api-keys",
     listModelURL: "https://api.deepseek.com/models",
     testModel: ChatModels.DEEPSEEK_CHAT,
+  },
+  [ChatModelProviders.CLAUDE_CODE_CLI]: {
+    label: "Claude Code CLI",
+    host: "local",
+    keyManagementURL: "",
+    listModelURL: "",
+    testModel: ChatModels.CLAUDE_CODE_CLI_DEFAULT,
   },
   [EmbeddingModelProviders.COPILOT_PLUS]: {
     label: "Copilot Plus",

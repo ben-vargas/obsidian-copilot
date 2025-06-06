@@ -211,6 +211,12 @@ export const ModelAddDialog: React.FC<ModelAddDialogProps> = ({
             azureOpenAIApiEmbeddingDeploymentName: settings.azureOpenAIApiEmbeddingDeploymentName,
           }
         : {}),
+      ...(provider === ChatModelProviders.CLAUDE_CODE_CLI
+        ? {
+            name: "sonnet", // Default to sonnet
+            baseUrl: "claude", // Default executable path
+          }
+        : {}),
     });
   };
   const handleOpenChange = (open: boolean) => {
@@ -245,6 +251,57 @@ export const ModelAddDialog: React.FC<ModelAddDialogProps> = ({
   const renderProviderSpecificFields = () => {
     const fields = () => {
       switch (model.provider) {
+        case ChatModelProviders.CLAUDE_CODE_CLI:
+          return (
+            <>
+              <FormField
+                label="Model Selection"
+                description="Choose a model alias or specify a custom model name"
+              >
+                <Select
+                  value={model.name === "opus" || model.name === "sonnet" ? model.name : "custom"}
+                  onValueChange={(value) => {
+                    if (value === "opus" || value === "sonnet") {
+                      setModel({ ...model, name: value });
+                      setError("name", false);
+                    }
+                    // If custom is selected, keep the current name or clear it
+                    else if (
+                      value === "custom" &&
+                      (model.name === "opus" || model.name === "sonnet")
+                    ) {
+                      setModel({ ...model, name: "" });
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select model type" />
+                  </SelectTrigger>
+                  <SelectContent container={dialogElement}>
+                    <SelectItem value="opus">Claude Opus (Latest)</SelectItem>
+                    <SelectItem value="sonnet">Claude Sonnet (Latest)</SelectItem>
+                    <SelectItem value="custom">Custom Model</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormField>
+              {model.name !== "opus" && model.name !== "sonnet" && (
+                <FormField
+                  label="Custom Model Name"
+                  description="Specify a custom model name (e.g., claude-sonnet-4-20250514)"
+                >
+                  <Input
+                    type="text"
+                    placeholder="Enter custom model name"
+                    value={model.name}
+                    onChange={(e) => {
+                      setModel({ ...model, name: e.target.value });
+                      setError("name", false);
+                    }}
+                  />
+                </FormField>
+              )}
+            </>
+          );
         case ChatModelProviders.OPENAI:
           return (
             <FormField
@@ -398,24 +455,26 @@ export const ModelAddDialog: React.FC<ModelAddDialogProps> = ({
         </DialogHeader>
 
         <div className="tw-space-y-3">
-          <FormField
-            label="Model Name"
-            required
-            error={errors.name}
-            errorMessage="Model name is required"
-          >
-            <Input
-              type="text"
-              placeholder={`Enter model name (e.g. ${
-                isEmbeddingModel ? "text-embedding-3-small" : "gpt-4"
-              })`}
-              value={model.name}
-              onChange={(e) => {
-                setModel({ ...model, name: e.target.value });
-                setError("name", false);
-              }}
-            />
-          </FormField>
+          {model.provider !== ChatModelProviders.CLAUDE_CODE_CLI && (
+            <FormField
+              label="Model Name"
+              required
+              error={errors.name}
+              errorMessage="Model name is required"
+            >
+              <Input
+                type="text"
+                placeholder={`Enter model name (e.g. ${
+                  isEmbeddingModel ? "text-embedding-3-small" : "gpt-4"
+                })`}
+                value={model.name}
+                onChange={(e) => {
+                  setModel({ ...model, name: e.target.value });
+                  setError("name", false);
+                }}
+              />
+            </FormField>
+          )}
 
           <FormField
             label={
@@ -472,29 +531,46 @@ export const ModelAddDialog: React.FC<ModelAddDialogProps> = ({
             </Select>
           </FormField>
 
-          <FormField label="Base URL" description="Leave it blank, unless you are using a proxy.">
+          <FormField
+            label={
+              model.provider === ChatModelProviders.CLAUDE_CODE_CLI
+                ? "Claude Executable Path"
+                : "Base URL"
+            }
+            description={
+              model.provider === ChatModelProviders.CLAUDE_CODE_CLI
+                ? "Path to claude executable (default: 'claude'). Leave blank to use system PATH."
+                : "Leave it blank, unless you are using a proxy."
+            }
+          >
             <Input
               type="text"
-              placeholder={getPlaceholderUrl() || "https://api.example.com/v1"}
+              placeholder={
+                model.provider === ChatModelProviders.CLAUDE_CODE_CLI
+                  ? "claude"
+                  : getPlaceholderUrl() || "https://api.example.com/v1"
+              }
               value={model.baseUrl || ""}
               onChange={(e) => setModel({ ...model, baseUrl: e.target.value })}
             />
           </FormField>
 
-          <FormField label="API Key">
-            <PasswordInput
-              placeholder={`Enter ${providerInfo.label} API Key`}
-              value={model.apiKey || ""}
-              onChange={(value) => setModel({ ...model, apiKey: value })}
-            />
-            {providerInfo.keyManagementURL && (
-              <p className="tw-text-xs tw-text-muted">
-                <a href={providerInfo.keyManagementURL} target="_blank" rel="noopener noreferrer">
-                  Get {providerInfo.label} API Key
-                </a>
-              </p>
-            )}
-          </FormField>
+          {model.provider !== ChatModelProviders.CLAUDE_CODE_CLI && (
+            <FormField label="API Key">
+              <PasswordInput
+                placeholder={`Enter ${providerInfo.label} API Key`}
+                value={model.apiKey || ""}
+                onChange={(value) => setModel({ ...model, apiKey: value })}
+              />
+              {providerInfo.keyManagementURL && (
+                <p className="tw-text-xs tw-text-muted">
+                  <a href={providerInfo.keyManagementURL} target="_blank" rel="noopener noreferrer">
+                    Get {providerInfo.label} API Key
+                  </a>
+                </p>
+              )}
+            </FormField>
+          )}
 
           <FormField
             label={

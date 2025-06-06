@@ -741,6 +741,7 @@ export function getNeedSetKeyProvider() {
     ChatModelProviders.OLLAMA,
     ChatModelProviders.LM_STUDIO,
     ChatModelProviders.AZURE_OPENAI,
+    ChatModelProviders.CLAUDE_CODE_CLI,
     EmbeddingModelProviders.COPILOT_PLUS,
     EmbeddingModelProviders.COPILOT_PLUS_JINA,
   ];
