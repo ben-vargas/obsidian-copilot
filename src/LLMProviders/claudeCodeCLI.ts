@@ -64,22 +64,34 @@ export class ChatClaudeCodeCLI extends BaseChatModel {
       const path = (window as any).require("path");
       const execPromise = util.promisify(exec);
 
-      // On macOS, GUI apps don't inherit the shell's PATH. To find the node
-      // executable managed by tools like nvm, we must ask a login shell.
-      // The `-l` flag makes it a login shell, which sources profile files.
-      const { stdout: nodePathStdout } = await execPromise('zsh -l -c "which node"');
-      const nodePath = nodePathStdout.trim();
-      if (!nodePath) {
-        throw new Error("`which node` returned empty output. Is Node.js installed?");
+      // Use the Node.js binary running this process by default
+      let nodePath = process.execPath;
+      let nodeDir = path.dirname(nodePath);
+
+      // Attempt to locate node via PATH for environments using tools like nvm
+      try {
+        const lookupCmd = process.platform === "win32" ? "where node" : "which node";
+        const { stdout } = await execPromise(lookupCmd);
+        const found = stdout.trim();
+        if (found) {
+          nodePath = found;
+          nodeDir = path.dirname(nodePath);
+        } else {
+          throw new Error(`'${lookupCmd}' returned empty output`);
+        }
+      } catch (lookupErr) {
+        // Fallback to process.execPath if lookup fails
+        console.warn(
+          `[Claude CLI] Failed to locate node via PATH: ${(lookupErr as Error).message}`
+        );
       }
-      const nodeDir = path.dirname(nodePath);
 
       // Use spawn to avoid Electron callback bugs with exec/execFile
       // See: https://github.com/electron/electron/issues/25405
       return new Promise((resolve, reject) => {
         const env = {
           ...process.env,
-          PATH: `${nodeDir}:${process.env.PATH || ""}`,
+          PATH: `${nodeDir}${path.delimiter}${process.env.PATH || ""}`,
         };
 
         const claudeProcess = spawn(this.claudeExecutablePath, args, {
@@ -184,9 +196,9 @@ export class ChatClaudeCodeCLI extends BaseChatModel {
         );
       }
       // Add a more specific error for the node finding part
-      if (err.message.includes("which node") || err.message.includes("command not found: zsh")) {
+      if (err.message.includes("which node") || err.message.includes("where node")) {
         throw new Error(
-          `Failed to find the 'node' executable for Claude Code CLI. Please ensure Node.js is installed and accessible from your shell (zsh). Error: ${err.message}`
+          `Failed to locate the 'node' executable for Claude Code CLI. Please ensure Node.js is installed and available in your PATH. Error: ${err.message}`
         );
       }
       throw new Error(`Claude Code CLI error: ${err.message}`);
