@@ -3,6 +3,7 @@ import {
   BREVILABS_API_BASE_URL,
   BUILTIN_CHAT_MODELS,
   ChatModelProviders,
+  ChatModels,
   ProviderInfo,
 } from "@/constants";
 import { getDecryptedKey } from "@/encryptionService";
@@ -253,8 +254,8 @@ export default class ChatModelManager {
         },
       },
       [ChatModelProviders.CLAUDE_CODE_CLI]: {
-        modelName: modelName,
-        claudeExecutablePath: customModel.baseUrl || "claude",
+        modelName: customModel.name === ChatModels.CLAUDE_CODE_CLI_DEFAULT ? "sonnet" : modelName,
+        claudeExecutablePath: customModel.baseUrl || "/Users/ben/.claude/local/claude",
       },
     };
 

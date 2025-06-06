@@ -1,20 +1,24 @@
-import { BaseChatModel, BaseChatModelParams } from "@langchain/core/language_models/chat_models";
 import {
-  BaseMessage,
+  BaseChatModel,
+  type BaseChatModelParams,
+} from "@langchain/core/language_models/chat_models";
+import {
   AIMessage,
+  AIMessageChunk,
+  BaseMessage,
   HumanMessage,
   SystemMessage,
-  AIMessageChunk,
 } from "@langchain/core/messages";
-import { ChatResult, ChatGeneration, ChatGenerationChunk } from "@langchain/core/outputs";
-import { CallbackManagerForLLMRun } from "@langchain/core/callbacks/manager";
+import type { ChatGeneration, ChatResult } from "@langchain/core/outputs";
+import { ChatGenerationChunk } from "@langchain/core/outputs";
+import type { CallbackManagerForLLMRun } from "@langchain/core/callbacks/manager";
 
 export interface ClaudeCodeCLIConfig extends BaseChatModelParams {
   modelName?: string;
   maxTokens?: number;
   temperature?: number;
   streaming?: boolean;
-  claudeExecutablePath?: string; // Allow custom path to claude executable
+  claudeExecutablePath?: string;
 }
 
 export class ChatClaudeCodeCLI extends BaseChatModel {
@@ -46,114 +50,151 @@ export class ChatClaudeCodeCLI extends BaseChatModel {
     const prompt = this.formatMessages(messages);
 
     // Build the command arguments
-    const args: string[] = ["-p", prompt, "--output-format", "json"];
+    // Use --print for non-interactive output, but pass prompt via stdin
+    const args: string[] = ["--print", "--output-format", "json"];
 
-    // Add optional parameters
+    // Add model if specified
     if (this.modelName) {
       args.push("--model", this.modelName);
     }
-    // Note: --max-tokens and --temperature flags are not supported by Claude Code CLI
 
     try {
-      // Try to get child_process from Electron
-      let exec: any;
+      // Try to get child_process module from different sources
+      let spawn: any;
 
       try {
-        // Try the newer Electron API first
+        // Try electron remote first
         const electron = (window as any).require("electron");
-        if (electron?.remote) {
-          exec = electron.remote.require("child_process").exec;
-        } else {
-          // Try direct require (for main process or if remote is disabled)
-          exec = (window as any).require("child_process").exec;
-        }
+        const cp = electron.remote.require("child_process");
+        spawn = cp.spawn;
       } catch {
+        // Try direct window.require
+        const cp = (window as any).require?.("child_process");
+        spawn = cp?.spawn;
+      }
+
+      if (!spawn) {
         // If neither work, try using obsidian's require
         const obsidianRequire = (window as any).require;
         if (obsidianRequire) {
           const cp = obsidianRequire("child_process");
           if (cp) {
-            exec = cp.exec;
+            spawn = cp.spawn;
           }
         }
       }
 
-      if (!exec) {
+      if (!spawn) {
         throw new Error(
           "Claude Code CLI requires Obsidian to be running on desktop with Node.js integration enabled."
         );
       }
 
+      // Use spawn to avoid Electron callback bugs with exec/execFile
+      // See: https://github.com/electron/electron/issues/25405
       return new Promise((resolve, reject) => {
-        const command = `${this.claudeExecutablePath} ${args
-          .map((arg) => {
-            // Properly escape arguments for shell
-            if (arg.includes(" ") || arg.includes('"') || arg.includes("'")) {
-              return `"${arg.replace(/"/g, '\\"')}"`;
-            }
-            return arg;
-          })
-          .join(" ")}`;
+        // Ensure PATH includes node
+        const env = {
+          ...process.env,
+          PATH: `/Users/ben/.nvm/versions/node/v22.14.0/bin:${process.env.PATH || ""}`,
+        };
 
-        exec(
-          command,
-          {
-            maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large responses
-          },
-          async (error: Error | null, stdout: string, stderr: string) => {
-            if (error) {
-              reject(new Error(`Claude Code CLI error: ${error.message}`));
+        const claudeProcess = spawn(this.claudeExecutablePath, args, {
+          env: env,
+          windowsHide: true,
+          stdio: ["pipe", "pipe", "pipe"], // Explicitly set stdio
+          shell: false, // Don't use shell
+        });
+
+        // Write the prompt to stdin
+        claudeProcess.stdin.write(prompt);
+        claudeProcess.stdin.end();
+
+        let stdout = "";
+        let stderr = "";
+        let processExited = false;
+
+        // Set a timeout to prevent hanging
+        const timeout = setTimeout(() => {
+          if (!processExited) {
+            console.error("[Claude CLI] Process timeout after 30 seconds");
+            claudeProcess.kill();
+            reject(new Error("Claude Code CLI timeout after 30 seconds"));
+          }
+        }, 30000);
+
+        claudeProcess.stdout.on("data", (data: Buffer) => {
+          const chunk = data.toString();
+          stdout += chunk;
+        });
+
+        claudeProcess.stderr.on("data", (data: Buffer) => {
+          stderr += data.toString();
+        });
+
+        claudeProcess.on("error", (error: Error) => {
+          console.error("[Claude CLI] Process error:", error);
+          reject(new Error(`Claude Code CLI error: ${error.message}`));
+        });
+
+        claudeProcess.on("close", async (code: number) => {
+          processExited = true;
+          clearTimeout(timeout);
+
+          if (code !== 0) {
+            reject(
+              new Error(`Claude Code CLI exited with code ${code}: ${stderr || "Unknown error"}`)
+            );
+            return;
+          }
+
+          if (stderr) {
+            console.warn("Claude Code CLI stderr:", stderr);
+          }
+
+          try {
+            // Parse the JSON response
+            const response = JSON.parse(stdout);
+
+            // Check if the response indicates an error
+            if (response.is_error) {
+              reject(
+                new Error(
+                  `Claude Code CLI returned an error: ${response.result || "Unknown error"}`
+                )
+              );
               return;
             }
 
-            if (stderr) {
-              console.warn("Claude Code CLI stderr:", stderr);
-            }
+            // Extract the content from the response
+            const content = response.result || "";
 
-            try {
-              // Parse the JSON response
-              const response = JSON.parse(stdout);
+            // Handle callbacks if needed
+            await runManager?.handleLLMNewToken(content);
 
-              // Check if the response indicates an error
-              if (response.is_error) {
-                reject(
-                  new Error(
-                    `Claude Code CLI returned an error: ${response.result || "Unknown error"}`
-                  )
-                );
-                return;
-              }
+            const message = new AIMessage(content);
+            const generation: ChatGeneration = {
+              message,
+              text: content,
+            };
 
-              // Extract the content from the response
-              const content = response.result || "";
+            // Include additional metadata from the response
+            const llmOutput = {
+              cost_usd: response.cost_usd,
+              duration_ms: response.duration_ms,
+              num_turns: response.num_turns,
+              session_id: response.session_id,
+              usage: response.usage,
+            };
 
-              // Handle callbacks if needed
-              await runManager?.handleLLMNewToken(content);
-
-              const message = new AIMessage(content);
-              const generation: ChatGeneration = {
-                message,
-                text: content,
-              };
-
-              // Include additional metadata from the response
-              const llmOutput = {
-                cost_usd: response.cost_usd,
-                duration_ms: response.duration_ms,
-                num_turns: response.num_turns,
-                session_id: response.session_id,
-                usage: response.usage,
-              };
-
-              resolve({
-                generations: [generation],
-                llmOutput,
-              });
-            } catch (parseError) {
-              reject(new Error(`Failed to parse Claude Code CLI response: ${parseError}`));
-            }
+            resolve({
+              generations: [generation],
+              llmOutput,
+            });
+          } catch (parseError) {
+            reject(new Error(`Failed to parse Claude Code CLI response: ${parseError}`));
           }
-        );
+        });
       });
     } catch (error) {
       if (error instanceof Error) {
@@ -173,10 +214,21 @@ export class ChatClaudeCodeCLI extends BaseChatModel {
     const result = await this._generate(messages, options, runManager);
     const text = result.generations[0].text;
 
-    yield new ChatGenerationChunk({
-      message: new AIMessageChunk(text),
+    // Create a chunk that matches what the streaming infrastructure expects
+    // The chunk needs to have content as a direct property for ThinkBlockStreamer
+    const chunk = new ChatGenerationChunk({
+      message: new AIMessageChunk({
+        content: text,
+        additional_kwargs: {},
+      }),
       text,
     });
+
+    // Ensure the chunk has the content property at the top level
+    // This is what ThinkBlockStreamer expects in its processChunk method
+    (chunk as any).content = text;
+
+    yield chunk;
   }
 
   private formatMessages(messages: BaseMessage[]): string {

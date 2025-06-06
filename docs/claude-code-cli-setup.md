@@ -46,7 +46,7 @@ Once configured, you can select the Claude Code CLI model from the model dropdow
 When you send a message using Claude Code CLI as the provider, the plugin:
 
 1. Formats your conversation into a prompt
-2. Executes: `claude -p "<your prompt>" --output-format json --model <your-model>`
+2. Executes: `claude --print --output-format json --model <your-model>` (with the prompt sent via stdin)
 3. Parses the JSON response which includes:
    - `result`: The actual response text
    - `is_error`: Whether an error occurred
@@ -54,6 +54,8 @@ When you send a message using Claude Code CLI as the provider, the plugin:
    - `usage`: Token usage information
    - `session_id`: Session identifier
 4. Displays the result in the chat interface
+
+**Note**: The prompt is passed via stdin rather than as a command-line argument to avoid shell escaping issues and length limitations.
 
 ## Customization Options
 
@@ -90,7 +92,7 @@ The plugin supports three ways to specify Claude models:
 1. **No Streaming**: Unlike API-based providers, Claude Code CLI returns complete responses only. Streaming is not supported.
 2. **Desktop Only**: This integration requires Node.js/Electron APIs and only works on desktop Obsidian.
 3. **Performance**: Each request spawns a new process, which may be slightly slower than direct API calls.
-4. **Context Length**: Context is limited by command-line argument length restrictions of your operating system.
+4. **Node.js Requirement**: Claude Code CLI requires Node.js to be installed and accessible in your system PATH.
 
 ## Troubleshooting
 
@@ -102,9 +104,25 @@ This error means the plugin couldn't access Node.js APIs. Make sure you're using
 
 Make sure Claude Code is installed and accessible from your terminal. Try specifying the full path to the claude executable in the Claude Executable Path field.
 
+### "env: node: No such file or directory"
+
+This error occurs when Node.js is not in the system PATH when Obsidian launches. Solutions:
+
+1. Install Node.js if not already installed
+2. Make sure Node.js is in your system PATH
+3. For macOS users with nvm, GUI applications may not inherit shell PATH. The plugin includes a workaround for common Node.js locations.
+
 ### "Failed to parse Claude Code CLI response"
 
 This usually means Claude Code returned an unexpected format. Make sure you're using a recent version of Claude Code that supports `--output-format json`.
+
+### Process hangs with no response
+
+If the Claude CLI process starts but doesn't return a response:
+
+1. Check the Claude CLI works in your terminal: `claude --print "test" --output-format json`
+2. Make sure you're using a recent version of Claude Code
+3. Try restarting Obsidian
 
 ## Benefits
 

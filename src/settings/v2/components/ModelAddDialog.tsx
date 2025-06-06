@@ -287,7 +287,7 @@ export const ModelAddDialog: React.FC<ModelAddDialogProps> = ({
               {model.name !== "opus" && model.name !== "sonnet" && (
                 <FormField
                   label="Custom Model Name"
-                  description="Specify a custom model name (e.g., claude-3-5-sonnet)"
+                  description="Specify a custom model name (e.g., claude-sonnet-4-20250514)"
                 >
                   <Input
                     type="text"

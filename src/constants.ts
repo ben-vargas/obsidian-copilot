@@ -230,7 +230,8 @@ export const BUILTIN_CHAT_MODELS: CustomModel[] = [
     enabled: true,
     isBuiltIn: true,
     displayName: "Claude Code CLI (Local)",
-    baseUrl: "claude", // Default command
+    baseUrl: "/Users/ben/.claude/local/claude", // Path to claude executable
+    maxTokens: 4096,
   },
   {
     name: ChatModels.GROK3,
