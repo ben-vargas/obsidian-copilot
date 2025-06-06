@@ -21,6 +21,7 @@ import { ChatOllama } from "@langchain/ollama";
 import { ChatOpenAI } from "@langchain/openai";
 import { ChatXAI } from "@langchain/xai";
 import { Notice } from "obsidian";
+import { ChatClaudeCodeCLI } from "./claudeCodeCLI";
 
 type ChatConstructorType = {
   new (config: any): any;
@@ -41,6 +42,7 @@ const CHAT_PROVIDER_CONSTRUCTORS = {
   [ChatModelProviders.COPILOT_PLUS]: ChatOpenAI,
   [ChatModelProviders.MISTRAL]: ChatMistralAI,
   [ChatModelProviders.DEEPSEEK]: ChatDeepSeek,
+  [ChatModelProviders.CLAUDE_CODE_CLI]: ChatClaudeCodeCLI,
 } as const;
 
 type ChatProviderConstructMap = typeof CHAT_PROVIDER_CONSTRUCTORS;
@@ -72,6 +74,7 @@ export default class ChatModelManager {
     [ChatModelProviders.COPILOT_PLUS]: () => getSettings().plusLicenseKey,
     [ChatModelProviders.MISTRAL]: () => getSettings().mistralApiKey,
     [ChatModelProviders.DEEPSEEK]: () => getSettings().deepseekApiKey,
+    [ChatModelProviders.CLAUDE_CODE_CLI]: () => "claude-code-cli",
   } as const;
 
   private constructor() {
@@ -248,6 +251,10 @@ export default class ChatModelManager {
           baseURL: customModel.baseUrl || ProviderInfo[ChatModelProviders.DEEPSEEK].host,
           fetch: customModel.enableCors ? safeFetch : undefined,
         },
+      },
+      [ChatModelProviders.CLAUDE_CODE_CLI]: {
+        modelName: modelName,
+        claudeExecutablePath: customModel.baseUrl || "claude",
       },
     };
 

@@ -21,11 +21,19 @@ import {
   ProviderMetadata,
   ProviderSettingsKeyMap,
   SettingKeyProviders,
+  ChatModelProviders,
 } from "@/constants";
 import { getProviderInfo, getProviderLabel } from "@/utils";
 import { PasswordInput } from "@/components/ui/password-input";
 import { getSettings } from "@/settings/model";
 import { debounce } from "@/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface ModelEditDialogProps {
   open: boolean;
@@ -120,15 +128,66 @@ export const ModelEditDialog: React.FC<ModelEditDialogProps> = ({
         </DialogHeader>
 
         <div className="tw-space-y-3">
-          <FormField label="Model Name" required>
-            <Input
-              type="text"
-              disabled={localModel.core}
-              value={localModel.name}
-              onChange={(e) => handleLocalUpdate("name", e.target.value)}
-              placeholder="Enter model name"
-            />
-          </FormField>
+          {localModel.provider === ChatModelProviders.CLAUDE_CODE_CLI ? (
+            <>
+              <FormField
+                label="Model Selection"
+                description="Choose a model alias or specify a custom model name"
+              >
+                <Select
+                  value={
+                    localModel.name === "opus" || localModel.name === "sonnet"
+                      ? localModel.name
+                      : "custom"
+                  }
+                  onValueChange={(value) => {
+                    if (value === "opus" || value === "sonnet") {
+                      handleLocalUpdate("name", value);
+                    }
+                    // If custom is selected and current name is an alias, clear it
+                    else if (
+                      value === "custom" &&
+                      (localModel.name === "opus" || localModel.name === "sonnet")
+                    ) {
+                      handleLocalUpdate("name", "");
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select model type" />
+                  </SelectTrigger>
+                  <SelectContent container={modalContainer}>
+                    <SelectItem value="opus">Claude Opus (Latest)</SelectItem>
+                    <SelectItem value="sonnet">Claude Sonnet (Latest)</SelectItem>
+                    <SelectItem value="custom">Custom Model</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormField>
+              {localModel.name !== "opus" && localModel.name !== "sonnet" && (
+                <FormField
+                  label="Custom Model Name"
+                  description="Specify a custom model name (e.g., claude-3-5-sonnet)"
+                >
+                  <Input
+                    type="text"
+                    placeholder="Enter custom model name"
+                    value={localModel.name}
+                    onChange={(e) => handleLocalUpdate("name", e.target.value)}
+                  />
+                </FormField>
+              )}
+            </>
+          ) : (
+            <FormField label="Model Name" required>
+              <Input
+                type="text"
+                disabled={localModel.core}
+                value={localModel.name}
+                onChange={(e) => handleLocalUpdate("name", e.target.value)}
+                placeholder="Enter model name"
+              />
+            </FormField>
+          )}
 
           <FormField
             label={
@@ -168,29 +227,46 @@ export const ModelEditDialog: React.FC<ModelEditDialogProps> = ({
             <Input type="text" value={getProviderLabel(localModel.provider)} disabled />
           </FormField>
 
-          <FormField label="Base URL" description="Leave it blank, unless you are using a proxy.">
+          <FormField
+            label={
+              localModel.provider === ChatModelProviders.CLAUDE_CODE_CLI
+                ? "Claude Executable Path"
+                : "Base URL"
+            }
+            description={
+              localModel.provider === ChatModelProviders.CLAUDE_CODE_CLI
+                ? "Path to claude executable (default: 'claude'). Leave blank to use system PATH."
+                : "Leave it blank, unless you are using a proxy."
+            }
+          >
             <Input
               type="text"
-              placeholder={getPlaceholderUrl()}
+              placeholder={
+                localModel.provider === ChatModelProviders.CLAUDE_CODE_CLI
+                  ? "claude"
+                  : getPlaceholderUrl()
+              }
               value={localModel.baseUrl || ""}
               onChange={(e) => handleLocalUpdate("baseUrl", e.target.value)}
             />
           </FormField>
 
-          <FormField label="API Key">
-            <PasswordInput
-              placeholder={`Enter ${providerInfo.label || "Provider"} API Key`}
-              value={displayApiKey}
-              onChange={(value) => handleLocalUpdate("apiKey", value)}
-            />
-            {providerInfo.keyManagementURL && (
-              <p className="tw-text-xs tw-text-muted">
-                <a href={providerInfo.keyManagementURL} target="_blank" rel="noopener noreferrer">
-                  Get {providerInfo.label} API Key
-                </a>
-              </p>
-            )}
-          </FormField>
+          {localModel.provider !== ChatModelProviders.CLAUDE_CODE_CLI && (
+            <FormField label="API Key">
+              <PasswordInput
+                placeholder={`Enter ${providerInfo.label || "Provider"} API Key`}
+                value={displayApiKey}
+                onChange={(value) => handleLocalUpdate("apiKey", value)}
+              />
+              {providerInfo.keyManagementURL && (
+                <p className="tw-text-xs tw-text-muted">
+                  <a href={providerInfo.keyManagementURL} target="_blank" rel="noopener noreferrer">
+                    Get {providerInfo.label} API Key
+                  </a>
+                </p>
+              )}
+            </FormField>
+          )}
 
           <FormField
             label={
